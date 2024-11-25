@@ -46,6 +46,34 @@ def search_for_artist(token, artist_name):
     
     return json_result[0]
 
+def search_for_album(token, album_name):
+    url = "https://api.spotify.com/v1/search"
+    headers = get_auth_header(token)
+    query = f"?q={album_name}&type=album&limit=1"
+
+    query_url = url + query
+    result = get(query_url, headers=headers)
+    json_result = json.loads(result.content)["albums"]["items"]
+    if len(json_result) == 0:
+        print("No album with this name exists.")
+        return None
+    
+    return json_result[0]
+
+def search_for_song(token, song_name):
+    url = "https://api.spotify.com/v1/search"
+    headers = get_auth_header(token)
+    query = f"?q={song_name}&type=track&limit=1"
+
+    query_url = url + query
+    result = get(query_url, headers=headers)
+    json_result = json.loads(result.content)["tracks"]["items"]
+    if len(json_result) == 0:
+        print("No song with this name exists.")
+        return None
+    
+    return json_result[0]
+
 # Gets top tracks in the US from artist
 def get_songs_by_artist(token, artist_id):
     url = f"https://api.spotify.com/v1/artists/{artist_id}/top-tracks?country=US"
@@ -55,10 +83,16 @@ def get_songs_by_artist(token, artist_id):
     return json_result
 
 token = get_token()
-result = search_for_artist(token, "lil uzi vert")
-artist_id = result["id"]
-songs = get_songs_by_artist(token, artist_id)
 
-# formating
-for idx, song in enumerate(songs):
-    print(f"{idx + 1}. {song['name']}")
+#artist_id = result["id"]
+#songs = get_songs_by_artist(token, artist_id)
+
+#example usage
+result = search_for_artist(token, "lil uzi vert")
+print(result["name"])
+
+result2 = search_for_album(token, "kanye graduation")
+print(result2["name"])
+
+result3 = search_for_song(token, "touch the sky kanye")
+print(result3["name"])
