@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPOTIFY VISUALIZER BETA</title>
+</head>
+<body>
+    <h1>Search for Artist</h1>
+    <form id="searchForm">
+        <input type="text" id="artist_name" name="artist_name" placeholder="Enter Artist Name" required>
+        <button type="submit">Search</button>
+    </form>
+
+    <div id="result">
+        <h2>Artist Info</h2>
+        <p id="name"></p>
+        <p id="genres"></p>
+        <p id="popularity"></p>
+    </div>
+
+    <script>
+        const form = document.getElementById('searchForm');
+        const resultDiv = document.getElementById('result');
+        const nameElement = document.getElementById('name');
+        const genresElement = document.getElementById('genres');
+        const popularityElement = document.getElementById('popularity');
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const artistName = document.getElementById('artist_name').value;
+
+            const response = await fetch('/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({ 'artist_name': artistName}),
+            });
+
+            const data = await response.json();
+
+            if (data.error) {
+                nameElement.textContent = "Artist not found.";
+                genresElement.textContent = "";
+                popularityElement.textContent = "";
+            } else {
+                nameElement.textContent = "Name: " + data.name;
+                genresElement.textContent = "Genres: " + data.genres;
+                popularityElement.textContent = "Popularity: " + data.popularity;
+            }
+        });
+    </script>
+</body>
+</html>

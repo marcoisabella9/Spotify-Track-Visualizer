@@ -1,15 +1,20 @@
+from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 import os
 import base64
 from requests import post, get
 import json
-from graph import Graph
 
+# load enviornment variables
 load_dotenv()
 
-# Getting client id and client secret from .env file
+app = Flask(__name__)
+
+# getting client id and client secret from .env file
 client_id = os.getenv("CLIENT_ID")
 client_secret = os.getenv("CLIENT_SECRET")
+
+# ---spotify API functions---
 
 # retrieving token from the spotify api
 def get_token():
@@ -74,35 +79,25 @@ def search_for_song(token, song_name):
     
     return json_result[0]
 
-# Gets top tracks in the US from artist
-def get_songs_by_artist(token, artist_id):
-    url = f"https://api.spotify.com/v1/artists/{artist_id}/top-tracks?country=US"
-    headers = get_auth_header(token)
-    result = get(url, headers=headers)
-    json_result = json.loads(result.content)["tracks"]
-    return json_result
+@app.route('/')
+def index():
+    return render_template('index.html')
 
-'''
-token = get_token()
-
-#artist_id = result["id"]
-#songs = get_songs_by_artist(token, artist_id)
-
-#example usage
-result = search_for_artist(token, "lil uzi vert")
-print(result["name"])
-
-result2 = search_for_album(token, "kanye graduation")
-print(result2["name"])
-
-result3 = search_for_song(token, "touch the sky kanye")
-print(result3["name"])
-'''
-'''
-def main():
-    # create a graph
-    graph = Graph()
-
+@app.route('/search', methods=['POST'])
+def search():
+    artist_name = request.form['artist_name']
     token = get_token()
+    artist = search_for_artist(token, artist_name)
 
-    '''
+    if artist is None:
+        return jsonify({'error': 'Artist not found'})
+
+    return jsonify({
+        'name': artist['name'],
+        'id': artist['id'],
+        'genres': artist['genres'],
+        'popularity': artist['popularity']
+    })
+
+if __name__ == '__main__':
+    app.run(debug=True)
