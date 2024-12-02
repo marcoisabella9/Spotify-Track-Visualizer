@@ -3,53 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SPOTIFY VISUALIZER BETA</title>
+    <title>Spotify Track Visualizer</title>
+    <!-- Add any CSS or JS links here -->
 </head>
 <body>
-    <h1>Search for Artist</h1>
-    <form id="searchForm">
-        <input type="text" id="artist_name" name="artist_name" placeholder="Enter Artist Name" required>
+    <h1>Welcome to Spotify Track Visualizer</h1>
+
+    <!-- Search Form -->
+    <form action="/search" method="POST">
+        <label for="search_query">Search for:</label>
+        <input type="text" id="search_query" name="search_query" placeholder="Enter artist, album, or song" required>
+
+        <label for="search_type">Search Type:</label>
+        <select id="search_type" name="search_type">
+            <option value="artist">Artist</option>
+            <option value="album">Album</option>
+            <option value="song">Song</option>
+        </select>
+
         <button type="submit">Search</button>
     </form>
 
-    <div id="result">
-        <h2>Artist Info</h2>
-        <p id="name"></p>
-        <p id="genres"></p>
-        <p id="popularity"></p>
+    <!-- Results Section -->
+    <div id="results">
+        <h2>Search Results</h2>
+        <p id="result-output">Your results will appear here.</p>
     </div>
 
+    
     <script>
-        const form = document.getElementById('searchForm');
-        const resultDiv = document.getElementById('result');
-        const nameElement = document.getElementById('name');
-        const genresElement = document.getElementById('genres');
-        const popularityElement = document.getElementById('popularity');
-
-        form.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            const artistName = document.getElementById('artist_name').value;
-
-            const response = await fetch('/search', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: new URLSearchParams({ 'artist_name': artistName}),
+        // Example to dynamically update the results section (if you return JSON from Flask)
+        const form = document.querySelector("form");
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData(form);
+            const response = await fetch(form.action, {
+                method: "POST",
+                body: formData
             });
-
-            const data = await response.json();
-
-            if (data.error) {
-                nameElement.textContent = "Artist not found.";
-                genresElement.textContent = "";
-                popularityElement.textContent = "";
+            const result = await response.json();
+            const output = document.getElementById("result-output");
+            if (result.error) {
+                output.textContent = result.error;
             } else {
-                nameElement.textContent = "Name: " + data.name;
-                genresElement.textContent = "Genres: " + data.genres;
-                popularityElement.textContent = "Popularity: " + data.popularity;
+                output.textContent = `Name: ${result.name}, Type: ${result.type}, Extra Info: ${result.extra_info || "N/A"}`;
             }
-        });
+        };
     </script>
 </body>
 </html>
