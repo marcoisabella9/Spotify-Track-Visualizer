@@ -85,19 +85,29 @@ def index():
 
 @app.route('/search', methods=['POST'])
 def search():
-    artist_name = request.form['artist_name']
+    search_query = request.form['search_query']
+    search_type = request.form['search_type']  # Can be 'artist', 'album', or 'song'
     token = get_token()
-    artist = search_for_artist(token, artist_name)
 
-    if artist is None:
-        return jsonify({'error': 'Artist not found'})
+    if search_type == 'artist':
+        result = search_for_artist(token, search_query)
+    elif search_type == 'album':
+        result = search_for_album(token, search_query)
+    elif search_type == 'song':
+        result = search_for_song(token, search_query)
+    else:
+        return jsonify({'error': 'Invalid search type'})
+
+    if result is None:
+        return jsonify({'error': f'{search_type.capitalize()} not found'})
 
     return jsonify({
-        'name': artist['name'],
-        'id': artist['id'],
-        'genres': artist['genres'],
-        'popularity': artist['popularity']
+        'name': result['name'],
+        'id': result['id'],
+        'type': search_type,
+        'extra_info': result.get('genres') if search_type == 'artist' else result.get('release_date')
     })
+
 
 if __name__ == '__main__':
     app.run(debug=True)
