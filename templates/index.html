@@ -4,12 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spotify Track Visualizer</title>
-    <!-- Add any CSS or JS links here -->
+    <!-- D3.js for Graph Visualization -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        /* Style the graph container */
+        #graph-container {
+            width: 100%;
+            height: 500px;
+            border: 1px solid #ccc;
+            margin-top: 20px;
+        }
+
+        .node {
+            fill: #69b3a2;
+        }
+
+        .link {
+            stroke: #ccc;
+            stroke-width: 1;
+        }
+
+        .node-label {
+            font-size: 12px;
+            fill: #333;
+        }
+
+        /* Styling for the form */
+        form {
+            margin-bottom: 20px;
+        }
+
+        input, select, button {
+            margin: 5px;
+        }
+    </style>
 </head>
 <body>
     <h1>Welcome to Spotify Track Visualizer</h1>
 
-    <!-- Search Form -->
+    <!-- Original Search Form -->
     <form action="/search" method="POST">
         <label for="search_query">Search for:</label>
         <input type="text" id="search_query" name="search_query" placeholder="Enter artist, album, or song" required>
@@ -24,15 +57,82 @@
         <button type="submit">Search</button>
     </form>
 
-    <!-- Results Section -->
-    <div id="results">
-        <h2>Search Results</h2>
-        <p id="result-output">Your results will appear here.</p>
-    </div>
+    <!-- Graph Display Section -->
+    <div id="graph-container"></div>
 
-    
     <script>
-        // Example to dynamically update the results section (if you return JSON from Flask)
+        async function renderGraph() {
+            const response = await fetch("/get_graph_data");
+            const graphData = await response.json();
+    
+            const width = 800;
+            const height = 500;
+    
+            const svg = d3.select("#graph-container")
+                .html("") // Clear the previous graph before rendering a new one
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height);
+    
+            // Define a force simulation for the nodes
+            const simulation = d3.forceSimulation(graphData.nodes)
+                .force("link", d3.forceLink(graphData.edges).id(d => d.id).distance(100)) // Adds link (edge) force
+                .force("charge", d3.forceManyBody().strength(-100)) // Applies repulsive force between nodes
+                .force("center", d3.forceCenter(width / 2, height / 2)); // Centers the graph
+    
+            // Create edges (links)
+            const links = svg.append("g")
+                .selectAll(".link")
+                .data(graphData.edges)
+                .enter().append("line")
+                .attr("class", "link")
+                .attr("stroke", "#ccc")
+                .attr("stroke-width", 1);
+    
+            // Create nodes (circles)
+            const nodes = svg.append("g")
+                .selectAll(".node")
+                .data(graphData.nodes)
+                .enter().append("circle")
+                .attr("class", "node")
+                .attr("r", 8)
+                .attr("fill", "#69b3a2");
+    
+            // Add labels to the nodes
+            const labels = svg.append("g")
+                .selectAll(".node-label")
+                .data(graphData.nodes)
+                .enter().append("text")
+                .attr("class", "node-label")
+                .attr("text-anchor", "middle")
+                .attr("dy", -12)
+                .text(d => d.data);
+    
+            // Tick function for the force simulation
+            simulation.on("tick", function() {
+                // Update the position of the links
+                links
+                    .attr("x1", d => d.source.x)
+                    .attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x)
+                    .attr("y2", d => d.target.y);
+    
+                // Update the position of the nodes
+                nodes
+                    .attr("cx", d => d.x)
+                    .attr("cy", d => d.y);
+    
+                // Update the position of the labels
+                labels
+                    .attr("x", d => d.x)
+                    .attr("y", d => d.y);
+            });
+        }
+    
+        // Render the graph when the page loads
+        window.onload = renderGraph;
+    
+        // Re-render the graph when new data is added
         const form = document.querySelector("form");
         form.onsubmit = async (e) => {
             e.preventDefault();
@@ -42,13 +142,11 @@
                 body: formData
             });
             const result = await response.json();
-            const output = document.getElementById("result-output");
-            if (result.error) {
-                output.textContent = result.error;
-            } else {
-                output.textContent = `Name: ${result.name}, Type: ${result.type}, Extra Info: ${result.extra_info || "N/A"}`;
-            }
+    
+            // After form submission, re-render the graph
+            renderGraph();
         };
     </script>
+    
 </body>
 </html>

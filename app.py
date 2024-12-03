@@ -4,11 +4,14 @@ import os
 import base64
 from requests import post, get
 import json
+from graph import Graph
 
 # load enviornment variables
 load_dotenv()
 
 app = Flask(__name__)
+
+graph = Graph() # init the graph
 
 # getting client id and client secret from .env file
 client_id = os.getenv("CLIENT_ID")
@@ -100,12 +103,52 @@ def search():
 
     if result is None:
         return jsonify({'error': f'{search_type.capitalize()} not found'})
+    
+    # create graph node for the result
+    node_id = result["id"]
+    node_data = result["name"]
+
+    # add node to graph
+    graph.add_node(node_id, node_data)
+
+    # relationships
+    if search_type == 'artist':
+        relationships = []
+        if 'albums' in result:
+            for album in result['albums']['items']:
+                graph.add_node(album['id'], album['name'])  # add album as node
+                relationships.append((node_id, album['id']))  # add relationship (edge) between artist and album
+            
+        # Add other relationships (e.g., artist to genres)
+        graph.add_data_with_relationships({node_id: node_data}, relationships)
+
+    elif search_type == 'album':
+        relationships = []
+        if 'tracks' in result:
+            for track in result['tracks']['items']:
+                graph.add_node(track['id'], track['name'])  # add song as a node
+                relationships.append((node_id, track['id']))  # add relationship (edge) between album and song
+        
+        graph.add_data_with_relationships({node_id: node_data}, relationships)
+
+    # No relationships for songs as they are leaf nodes
 
     return jsonify({
         'name': result['name'],
         'id': result['id'],
         'type': search_type,
         'extra_info': result.get('genres') if search_type == 'artist' else result.get('release_date')
+    })
+
+
+@app.route('/get_graph_data')
+def get_graph_data():
+    nodes = [{"id": node_id, "data": node_data} for node_id, node_data in graph.nodes.items()]
+    edges = [{"source": node_id1, "target": node_id2} for node_id1, neighbors in graph.edges.items() for node_id2, _ in neighbors]
+
+    return jsonify({
+        "nodes": nodes,
+        "edges": edges
     })
 
 
