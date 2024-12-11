@@ -4,51 +4,185 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spotify Track Visualizer</title>
-    <!-- Add any CSS or JS links here -->
+    <style>
+        .node {
+            fill: steelblue;
+            stroke: #fff;
+            stroke-width: 1.5px;
+        }
+        .link {
+            stroke: gray;
+            stroke-width: 2px;
+        }
+        .node-label {
+            font-size: 12px;
+            fill: black;
+        }
+        #graph {
+            border: 1px solid #ccc;
+        }
+        button {
+            margin: 5px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Welcome to Spotify Track Visualizer</h1>
+    <h1>Spotify Track Visualizer</h1>
 
     <!-- Search Form -->
-    <form action="/search" method="POST">
+    <form id="search-form">
         <label for="search_query">Search for:</label>
         <input type="text" id="search_query" name="search_query" placeholder="Enter artist, album, or song" required>
-
         <label for="search_type">Search Type:</label>
         <select id="search_type" name="search_type">
             <option value="artist">Artist</option>
             <option value="album">Album</option>
             <option value="song">Song</option>
         </select>
-
         <button type="submit">Search</button>
     </form>
 
-    <!-- Results Section -->
-    <div id="results">
-        <h2>Search Results</h2>
-        <p id="result-output">Your results will appear here.</p>
+    <!-- Controls -->
+    <div>
+        <button id="zoom-in">Zoom In</button>
+        <button id="zoom-out">Zoom Out</button>
+        <button id="reset-view">Reset View</button>
     </div>
 
-    
+    <!-- SVG Container for Graph -->
+    <svg id="graph" width="1200" height="800"></svg>
+
+    <!-- D3.js Script -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <script>
-        // Example to dynamically update the results section (if you return JSON from Flask)
-        const form = document.querySelector("form");
-        form.onsubmit = async (e) => {
-            e.preventDefault();
-            const formData = new FormData(form);
-            const response = await fetch(form.action, {
-                method: "POST",
-                body: formData
-            });
-            const result = await response.json();
-            const output = document.getElementById("result-output");
-            if (result.error) {
-                output.textContent = result.error;
-            } else {
-                output.textContent = `Name: ${result.name}, Type: ${result.type}, Extra Info: ${result.extra_info || "N/A"}`;
+        // Handle form submission asynchronously
+        document.getElementById("search-form").onsubmit = async function(event) {
+            event.preventDefault();
+
+            const formData = new FormData(event.target);
+            const searchQuery = formData.get("search_query");
+            const searchType = formData.get("search_type");
+
+            try {
+                const response = await fetch("/search", {
+                    method: "POST",
+                    body: formData,
+                });
+                const result = await response.json();
+
+                if (result.error) {
+                    alert(result.error);
+                } else {
+                    alert(`Successfully added ${searchType}: "${searchQuery}" to the graph.`);
+                    renderGraph();
+                }
+            } catch (error) {
+                console.error("Error searching:", error);
+                alert("An error occurred while searching. Please try again.");
             }
         };
+
+        async function renderGraph() {
+            try {
+                const response = await fetch("/get_graph_data");
+                const graphData = await response.json();
+
+                console.log("Graph Data:", graphData);
+
+                const svg = d3.select("#graph");
+                const width = +svg.attr("width");
+                const height = +svg.attr("height");
+
+                svg.selectAll("*").remove(); // Clear existing graph
+
+                // Initialize node positions (if not already set)
+                graphData.nodes.forEach(node => {
+                    if (!node.x || !node.y) {
+                        node.x = Math.random() * width;
+                        node.y = Math.random() * height;
+                    }
+                });
+
+                const zoomGroup = svg.append("g")
+                    .attr("class", "zoom-group");
+
+                const zoom = d3.zoom()
+                    .scaleExtent([0.5, 3])
+                    .on("zoom", (event) => {
+                        zoomGroup.attr("transform", event.transform);
+                    });
+
+                svg.call(zoom);
+
+                const simulation = d3.forceSimulation(graphData.nodes)
+                    .force("link", d3.forceLink(graphData.edges).id(d => d.id).distance(150))
+                    .force("charge", d3.forceManyBody().strength(-300))
+                    .force("center", d3.forceCenter(width / 2, height / 2))
+                    .force("collide", d3.forceCollide().radius(30)); // Prevent node overlap
+
+                const link = zoomGroup.append("g")
+                    .attr("class", "links")
+                    .selectAll("line")
+                    .data(graphData.edges)
+                    .join("line")
+                    .attr("class", "link");
+
+                const node = zoomGroup.append("g")
+                    .attr("class", "nodes")
+                    .selectAll("circle")
+                    .data(graphData.nodes)
+                    .join("circle")
+                    .attr("class", "node")
+                    .attr("r", 10)
+                    .call(d3.drag()
+                        .on("start", (event, d) => {
+                            if (!event.active) simulation.alphaTarget(0.3).restart();
+                            d.fx = d.x;
+                            d.fy = d.y;
+                        })
+                        .on("drag", (event, d) => {
+                            d.fx = event.x;
+                            d.fy = event.y;
+                        })
+                        .on("end", (event, d) => {
+                            if (!event.active) simulation.alphaTarget(0);
+                            d.fx = null;
+                            d.fy = null;
+                        }));
+
+                const label = zoomGroup.append("g")
+                    .attr("class", "labels")
+                    .selectAll("text")
+                    .data(graphData.nodes)
+                    .join("text")
+                    .attr("class", "node-label")
+                    .attr("text-anchor", "middle")
+                    .attr("dy", "-1.2em")
+                    .text(d => d.data);
+
+                simulation.on("tick", () => {
+                    link
+                        .attr("x1", d => d.source.x)
+                        .attr("y1", d => d.source.y)
+                        .attr("x2", d => d.target.x)
+                        .attr("y2", d => d.target.y);
+
+                    node
+                        .attr("cx", d => d.x)
+                        .attr("cy", d => d.y);
+
+                    label
+                        .attr("x", d => d.x)
+                        .attr("y", d => d.y);
+                });
+
+                document.getElementById("zoom-in").onclick = () => svg.transition().call(zoom.scaleBy, 1.2);
+                document.getElementById("zoom-out").onclick = () => svg.transition().call(zoom.scaleBy, 0.8);
+                document.getElementById("reset-view").onclick = () => svg.transition().call(zoom.transform, d3.zoomIdentity);
+            } catch (error) {
+                console.error("Error rendering graph:", error);
+            }
+        }
     </script>
 </body>
 </html>
