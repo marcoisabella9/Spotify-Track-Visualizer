@@ -81,28 +81,3 @@ def get_songs_by_artist(token, artist_id):
     result = get(url, headers=headers)
     json_result = json.loads(result.content)["tracks"]
     return json_result
-
-'''
-token = get_token()
-
-#artist_id = result["id"]
-#songs = get_songs_by_artist(token, artist_id)
-
-#example usage
-result = search_for_artist(token, "lil uzi vert")
-print(result["name"])
-
-result2 = search_for_album(token, "kanye graduation")
-print(result2["name"])
-
-result3 = search_for_song(token, "touch the sky kanye")
-print(result3["name"])
-'''
-'''
-def main():
-    # create a graph
-    graph = Graph()
-
-    token = get_token()
-
-    '''
