@@ -8,7 +8,7 @@ import json
 # load enviornment variables
 load_dotenv()
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='/images', static_folder='images')
 
 # getting client id and client secret from .env file
 client_id = os.getenv("CLIENT_ID")

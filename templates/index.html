@@ -4,7 +4,39 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spotify Track Visualizer</title>
-    <!-- Add any CSS or JS links here -->
+    <style>
+        .node {
+            fill: steelblue;
+            stroke: #fff;
+            stroke-width: 1.5px;
+        }
+        .link {
+            stroke: gray;
+            stroke-width: 2px;
+        }
+        .node-label {
+            font-size: 12px;
+            fill: black;
+        }
+        #graph {
+            border: 1px solid #ccc;
+        }
+        button {
+            margin: 5px;
+            border-radius: 8px;
+        }
+        /* HOVER ON BUTTON */
+        button:hover {
+            cursor: pointer;
+            transform: scale(1.1);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3)
+        }
+        body {
+            font-family: Verdana, Geneva, Tahoma, sans-serif;
+            background-color: rgb(33, 199, 33);
+        }
+        
+    </style>
 </head>
 <body>
     <h1>Welcome to Spotify Track Visualizer</h1>
@@ -49,6 +81,112 @@
                 output.textContent = `Name: ${result.name}, Type: ${result.type}, Extra Info: ${result.extra_info || "N/A"}`;
             }
         };
+
+        async function renderGraph() {
+            try {
+                const response = await fetch("/get_graph_data");
+                const graphData = await response.json();
+
+                console.log("Graph Data:", graphData);
+
+                const svg = d3.select("#graph");
+                const width = +svg.attr("width");
+                const height = +svg.attr("height");
+
+                svg.selectAll("*").remove(); // Clear existing graph
+
+                // Initialize node positions (if not already set)
+                graphData.nodes.forEach(node => {
+                    if (!node.x || !node.y) {
+                        node.x = Math.random() * width;
+                        node.y = Math.random() * height;
+                    }
+                });
+
+                const zoomGroup = svg.append("g")
+                    .attr("class", "zoom-group");
+
+                const zoom = d3.zoom()
+                    .scaleExtent([0.5, 3])
+                    .on("zoom", (event) => {
+                        zoomGroup.attr("transform", event.transform);
+                    });
+
+                svg.call(zoom);
+
+                const simulation = d3.forceSimulation(graphData.nodes)
+                    .force("link", d3.forceLink(graphData.edges).id(d => d.id).distance(100))
+                    .force("charge", d3.forceManyBody().strength(-300))
+                    .force("center", d3.forceCenter(width / 2, height / 2))
+                    .force("collide", d3.forceCollide().radius(20)); // Prevent node overlap (avoid unrelated nodes)
+
+                const link = zoomGroup.append("g")
+                    .attr("class", "links")
+                    .selectAll("line")
+                    .data(graphData.edges)
+                    .join("line")
+                    .attr("class", "link");
+
+                const node = zoomGroup.append("g")
+                    .attr("class", "nodes")
+                    .selectAll("image")
+                    .data(graphData.nodes)
+                    .join("image")
+                    .attr("class", "node")
+                    .attr("xlink:href", "images/song.png")
+                    .attr("width", 30) // IMAGE WIDTH
+                    .attr("height", 30) // IMAGE HEIGHT
+                    .attr("x", d => d.x - 15) // CENTERING IMAGE
+                    .attr("y", d => d.y - 15)
+                    .call(d3.drag()
+                        .on("start", (event, d) => {
+                            if (!event.active) simulation.alphaTarget(0.3).restart();
+                            d.fx = d.x;
+                            d.fy = d.y;
+                        })
+                        .on("drag", (event, d) => {
+                            d.fx = event.x;
+                            d.fy = event.y;
+                        })
+                        .on("end", (event, d) => {
+                            if (!event.active) simulation.alphaTarget(0);
+                            d.fx = null;
+                            d.fy = null;
+                        }));
+
+                const label = zoomGroup.append("g")
+                    .attr("class", "labels")
+                    .selectAll("text")
+                    .data(graphData.nodes)
+                    .join("text")
+                    .attr("class", "node-label")
+                    .attr("text-anchor", "middle")
+                    .attr("dy", "-1.2em")
+                    .text(d => d.data);
+
+                simulation.on("tick", () => {
+                    link
+                        .attr("x1", d => d.source.x)
+                        .attr("y1", d => d.source.y)
+                        .attr("x2", d => d.target.x)
+                        .attr("y2", d => d.target.y);
+
+                    node
+                        .attr("x", d => d.x - 20) // Update image position
+                        .attr("y", d => d.y - 20); // Update image position
+
+                    label
+                        .attr("x", d => d.x)
+                        .attr("y", d => d.y);
+                });
+
+                document.getElementById("zoom-in").onclick = () => svg.transition().call(zoom.scaleBy, 1.2);
+                document.getElementById("zoom-out").onclick = () => svg.transition().call(zoom.scaleBy, 0.8);
+                document.getElementById("reset-view").onclick = () => svg.transition().call(zoom.transform, d3.zoomIdentity);
+            } catch (error) {
+                console.error("Error rendering graph:", error);
+            }
+        }
     </script>
 </body>
 </html>
