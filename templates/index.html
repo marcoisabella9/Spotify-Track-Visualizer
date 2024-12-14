@@ -59,6 +59,7 @@
         <button id="zoom-in">Zoom In</button>
         <button id="zoom-out">Zoom Out</button>
         <button id="reset-view">Reset View</button>
+        <button id="clear-graph">Clear</button>
     </div>
 
     <!-- SVG Container for Graph -->
@@ -103,6 +104,7 @@
                 const width = +svg.attr("width");
                 const height = +svg.attr("height");
                 svg.selectAll("*").remove(); // Clear existing graph
+
                 // Initialize node positions (if not already set)
                 graphData.nodes.forEach(node => {
                     if (!node.x || !node.y) {
@@ -110,25 +112,31 @@
                         node.y = Math.random() * height;
                     }
                 });
+
                 const zoomGroup = svg.append("g")
                     .attr("class", "zoom-group");
+
                 const zoom = d3.zoom()
                     .scaleExtent([0.5, 3])
                     .on("zoom", (event) => {
                         zoomGroup.attr("transform", event.transform);
                     });
+
                 svg.call(zoom);
+                
                 const simulation = d3.forceSimulation(graphData.nodes)
                     .force("link", d3.forceLink(graphData.edges).id(d => d.id).distance(100))
                     .force("charge", d3.forceManyBody().strength(-300))
                     .force("center", d3.forceCenter(width / 2, height / 2))
                     .force("collide", d3.forceCollide().radius(20)); // Prevent node overlap (avoid unrelated nodes)
+
                 const link = zoomGroup.append("g")
                     .attr("class", "links")
                     .selectAll("line")
                     .data(graphData.edges)
                     .join("line")
                     .attr("class", "link");
+
                 const node = zoomGroup.append("g")
                     .attr("class", "nodes")
                     .selectAll("image")
@@ -155,6 +163,7 @@
                             d.fx = null;
                             d.fy = null;
                         }));
+
                 const label = zoomGroup.append("g")
                     .attr("class", "labels")
                     .selectAll("text")
@@ -164,6 +173,7 @@
                     .attr("text-anchor", "middle")
                     .attr("dy", "-1.2em")
                     .text(d => d.data);
+
                 simulation.on("tick", () => {
                     link
                         .attr("x1", d => d.source.x)
@@ -177,9 +187,11 @@
                         .attr("x", d => d.x)
                         .attr("y", d => d.y);
                 });
+
                 document.getElementById("zoom-in").onclick = () => svg.transition().call(zoom.scaleBy, 1.2);
                 document.getElementById("zoom-out").onclick = () => svg.transition().call(zoom.scaleBy, 0.8);
                 document.getElementById("reset-view").onclick = () => svg.transition().call(zoom.transform, d3.zoomIdentity);
+                document.getElementById("clear-graph").onclick = () => svg.selectAll("*").remove();
             } catch (error) {
                 console.error("Error rendering graph:", error);
             }
