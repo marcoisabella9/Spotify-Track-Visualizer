@@ -9,7 +9,7 @@ from graph import Graph
 # Load environment variables
 load_dotenv()
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='/images', static_folder='images')
 
 graph = Graph()  # Initialize the graph
 
