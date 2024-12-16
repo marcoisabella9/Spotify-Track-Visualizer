@@ -1,4 +1,4 @@
-# Spotify Data Visulizer
+# Spotify Data Visualizer
 A tool for users to see connections in metadata from Spotify using their public API.
 <br>
 <br>
